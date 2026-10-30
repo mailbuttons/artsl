@@ -1,0 +1,11 @@
+[Unit]
+Description=artsl: redraw the picture of the day every six hours
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=6h
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

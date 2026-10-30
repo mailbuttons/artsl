@@ -1,0 +1,23 @@
+[Unit]
+Description=artsl art service (picture of the day + on-demand drawing for mailbuttons subscribers)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=artsl
+Group=artsl
+EnvironmentFile=/opt/artsl/artsl.env
+ExecStart=/opt/artsl/bin/artsl serve
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=0
+StateDirectory=artsl
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/artsl
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

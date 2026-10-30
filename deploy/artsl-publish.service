@@ -1,0 +1,13 @@
+# Alternative to running `artsl serve`: redraw latest.json on a timer and let
+# nginx serve /var/lib/artsl as static files. No on-demand drawing this way.
+[Unit]
+Description=artsl: redraw the picture of the day
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=artsl
+Group=artsl
+EnvironmentFile=/opt/artsl/artsl.env
+ExecStart=/opt/artsl/bin/artsl publish --out ${ARTSL_DATA_DIR}
