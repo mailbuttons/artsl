@@ -108,8 +108,9 @@ fn interleave(mut per_feed: Vec<Vec<Headline>>, limit: usize) -> Vec<Headline> {
 /// and `<entry>` (Atom), the channel/feed title as the source name, and the
 /// usual synonyms for summary and date.
 pub fn parse_feed(xml: &str) -> Vec<Headline> {
+    // No trimming here: entity references split text into pieces, and the
+    // whitespace between them matters. Fields are collapsed by `one_line`.
     let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
 
     let mut items = Vec::new();
     let mut stack: Vec<String> = Vec::new();
@@ -154,8 +155,17 @@ pub fn parse_feed(xml: &str) -> Vec<Headline> {
                 }
             }
             Event::Text(t) => {
-                let text = t.unescape().map(|c| c.into_owned()).unwrap_or_default();
+                let text = t
+                    .xml_content(quick_xml::XmlVersion::Implicit1_0)
+                    .map(|c| c.into_owned())
+                    .unwrap_or_default();
                 absorb(&stack, &mut cur, &mut source, &text);
+            }
+            // quick-xml 0.38+ reports `&amp;`-style references as their own
+            // events rather than expanding them inside the text.
+            Event::GeneralRef(r) => {
+                let name = r.decode().map(|c| c.into_owned()).unwrap_or_default();
+                absorb(&stack, &mut cur, &mut source, &resolve_entity(&name));
             }
             Event::CData(c) => {
                 let text = String::from_utf8_lossy(c.into_inner().as_ref()).into_owned();
@@ -245,7 +255,34 @@ fn attr(e: &quick_xml::events::BytesStart<'_>, key: &[u8]) -> Option<String> {
     e.attributes()
         .flatten()
         .find(|a| a.key.as_ref() == key)
-        .and_then(|a| a.unescape_value().ok().map(|v| v.into_owned()))
+        .and_then(|a| {
+            a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                .ok()
+                .map(|v| v.into_owned())
+        })
+}
+
+/// The five predefined XML entities and numeric character references; any
+/// other named entity is kept literally so nothing is silently lost.
+fn resolve_entity(name: &str) -> String {
+    match name {
+        "amp" => "&".to_string(),
+        "lt" => "<".to_string(),
+        "gt" => ">".to_string(),
+        "quot" => "\"".to_string(),
+        "apos" => "'".to_string(),
+        n if n.starts_with('#') => {
+            let code = if let Some(hex) = n.strip_prefix("#x").or_else(|| n.strip_prefix("#X")) {
+                u32::from_str_radix(hex, 16).ok()
+            } else {
+                n[1..].parse::<u32>().ok()
+            };
+            code.and_then(char::from_u32)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        }
+        other => format!("&{other};"),
+    }
 }
 
 /// Good enough for feed blurbs: drop tags, decode the handful of entities
@@ -313,6 +350,16 @@ mod tests {
         );
         assert_eq!(items[0].link, "https://x/1");
         assert!(items[0].published.starts_with("Thu"));
+    }
+
+    #[test]
+    fn entities_resolve() {
+        assert_eq!(resolve_entity("amp"), "&");
+        assert_eq!(resolve_entity("#39"), "'");
+        assert_eq!(resolve_entity("#x2019"), "\u{2019}");
+        assert_eq!(resolve_entity("nbsp"), "&nbsp;");
+        let xml = "<rss><channel><title>T</title><item><title>Rock &amp; roll &#8217;26</title></item></channel></rss>";
+        assert_eq!(parse_feed(xml)[0].title, "Rock & roll \u{2019}26");
     }
 
     #[test]

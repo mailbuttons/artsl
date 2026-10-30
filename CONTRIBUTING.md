@@ -10,7 +10,7 @@ cargo test
 ARTSL_CONFIG=/tmp/c.toml ARTSL_CACHE_DIR=/tmp/cache cargo run -- --builtin
 ```
 
-Rust 1.82 or newer. No other toolchain is needed. A Claude API key is only
+Rust 1.85 or newer. No other toolchain is needed. A Claude API key is only
 needed for `generate`, `publish` and `serve`.
 
 ## Before you open a pull request
