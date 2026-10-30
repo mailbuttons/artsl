@@ -6,7 +6,7 @@
 use crate::art::Art;
 use crate::builtin;
 use crate::config::{cache_dir, Config};
-use crate::mailbuttons::{self, Mailbuttons};
+use crate::mailbuttons::{self, FeedFetch, Mailbuttons};
 use anyhow::{Context, Result};
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
@@ -59,6 +59,10 @@ pub fn load_cache() -> Option<(Art, Duration)> {
 }
 
 pub fn save_cache(art: &Art) -> Result<()> {
+    save_cache_with_etag(art, None)
+}
+
+pub fn save_cache_with_etag(art: &Art, etag: Option<&str>) -> Result<()> {
     let path = cache_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -66,13 +70,39 @@ pub fn save_cache(art: &Art) -> Result<()> {
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, serde_json::to_vec_pretty(art)?)?;
     std::fs::rename(&tmp, &path)?;
+    let tag_path = etag_path();
+    match etag {
+        Some(t) => std::fs::write(tag_path, t)?,
+        None => {
+            let _ = std::fs::remove_file(tag_path);
+        }
+    }
     Ok(())
+}
+
+fn etag_path() -> PathBuf {
+    cache_dir().join("latest.etag")
+}
+
+fn load_etag() -> Option<String> {
+    std::fs::read_to_string(etag_path())
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// A 304 means the cached copy is still the picture of the day: bump its
+/// modification time so it counts as fresh again.
+fn touch_cache() {
+    if let Ok(f) = std::fs::File::options().write(true).open(cache_path()) {
+        let _ = f.set_modified(std::time::SystemTime::now());
+    }
 }
 
 pub async fn pick(cfg: &Config, opts: &PickOpts) -> Result<(Art, Origin)> {
     if let Some(path) = &opts.file {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         return Ok((Art::from_json(&text)?, Origin::File));
     }
     if opts.builtin {
@@ -80,29 +110,34 @@ pub async fn pick(cfg: &Config, opts: &PickOpts) -> Result<(Art, Origin)> {
     }
 
     if opts.fresh {
-        match cfg.mailbuttons.api_key.as_deref().filter(|k| !k.is_empty()) {
+        match cfg.token() {
             None => {
                 eprintln!("artsl: --fresh needs a subscription. Run `artsl subscribe` first. Showing the picture of the day instead.");
             }
-            Some(key) if opts.offline => {
-                let _ = key;
+            Some(_) if opts.offline => {
                 eprintln!("artsl: --fresh and --offline don't mix; showing what's cached.");
             }
-            Some(key) => {
+            Some(token) => {
                 let base = opts
                     .mailbuttons_url
                     .clone()
                     .unwrap_or_else(|| cfg.mailbuttons.base_url.clone());
                 let mb = Mailbuttons::new(&base)?;
                 let spinner = Spinner::start("Reading the news and drawing");
-                let result = mb.fresh_art(key, opts.theme.as_deref()).await;
+                let result = mb.fresh_art(token, opts.theme.as_deref()).await;
                 drop(spinner);
                 match result {
                     Ok(art) => {
                         let _ = save_cache(&art);
                         return Ok((art, Origin::Fresh));
                     }
-                    Err(e) => eprintln!("artsl: {e:#}. Showing the picture of the day instead."),
+                    Err(e) => {
+                        let msg = format!("{e:#}");
+                        eprintln!(
+                            "artsl: {}. Showing the picture of the day instead.",
+                            msg.trim_end_matches('.')
+                        )
+                    }
                 }
             }
         }
@@ -119,11 +154,19 @@ pub async fn pick(cfg: &Config, opts: &PickOpts) -> Result<(Art, Origin)> {
         return Ok((builtin::builtin(), Origin::Builtin));
     }
 
-    match mailbuttons::fetch_feed(&cfg.feed.url).await {
-        Ok(art) => {
-            let _ = save_cache(&art);
-            Ok((art, Origin::Feed))
+    let etag = if cached.is_some() { load_etag() } else { None };
+    match mailbuttons::fetch_feed(&cfg.feed.url, etag.as_deref()).await {
+        Ok(FeedFetch::Fresh(art, tag)) => {
+            let _ = save_cache_with_etag(&art, tag.as_deref());
+            Ok((*art, Origin::Feed))
         }
+        Ok(FeedFetch::NotModified) => match cached {
+            Some((art, _)) => {
+                touch_cache();
+                Ok((art, Origin::Feed))
+            }
+            None => Ok((builtin::builtin(), Origin::Builtin)),
+        },
         Err(_) => match cached {
             Some((art, _)) => Ok((art, Origin::Cache)),
             None => Ok((builtin::builtin(), Origin::Builtin)),

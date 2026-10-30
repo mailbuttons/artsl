@@ -32,8 +32,9 @@ pub struct Config {
 pub struct MailbuttonsCfg {
     /// Where `subscribe` signs in and where `--fresh` asks for a picture.
     pub base_url: String,
-    /// The `mbk_` key from `artsl subscribe`. Presence means subscribed.
-    pub api_key: Option<String>,
+    /// The art-only `art_` token from `artsl subscribe`. It can draw
+    /// pictures and nothing else. Presence means subscribed.
+    pub token: Option<String>,
     pub email: Option<String>,
 }
 
@@ -41,7 +42,7 @@ impl Default for MailbuttonsCfg {
     fn default() -> Self {
         Self {
             base_url: DEFAULT_MAILBUTTONS_URL.to_string(),
-            api_key: None,
+            token: None,
             email: None,
         }
     }
@@ -70,8 +71,8 @@ impl Default for FeedCfg {
 pub struct DisplayCfg {
     /// Milliseconds per column of travel.
     pub speed_ms: u64,
-    /// Ticks each animation frame is held for.
-    pub frame_hold: u64,
+    /// Milliseconds each animation frame is shown for, independent of speed.
+    pub frame_ms: u64,
     /// Like `sl`: ignore q and Ctrl-C until the picture has gone by.
     pub stubborn: bool,
 }
@@ -80,7 +81,7 @@ impl Default for DisplayCfg {
     fn default() -> Self {
         Self {
             speed_ms: 28,
-            frame_hold: 6,
+            frame_ms: 150,
             stubborn: false,
         }
     }
@@ -166,11 +167,11 @@ impl Config {
             .filter(|k| !k.trim().is_empty())
     }
 
-    pub fn is_subscribed(&self) -> bool {
+    pub fn token(&self) -> Option<&str> {
         self.mailbuttons
-            .api_key
+            .token
             .as_deref()
-            .map(|k| !k.trim().is_empty())
-            .unwrap_or(false)
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
     }
 }

@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 pub struct ScrollOpts {
     pub speed_ms: u64,
-    pub frame_hold: u64,
+    pub frame_ms: u64,
     pub stubborn: bool,
     pub footer: String,
 }
@@ -29,7 +29,11 @@ pub fn colour(mood: Mood) -> Color {
         Mood::Magenta => Color::Magenta,
         Mood::Cyan => Color::Cyan,
         Mood::White => Color::White,
-        Mood::Orange => Color::Rgb { r: 255, g: 107, b: 53 },
+        Mood::Orange => Color::Rgb {
+            r: 255,
+            g: 107,
+            b: 53,
+        },
     }
 }
 
@@ -39,7 +43,12 @@ struct Screen;
 impl Screen {
     fn enter() -> Result<Screen> {
         terminal::enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, cursor::Hide, Clear(ClearType::All))?;
+        execute!(
+            io::stdout(),
+            EnterAlternateScreen,
+            cursor::Hide,
+            Clear(ClearType::All)
+        )?;
         Ok(Screen)
     }
 }
@@ -64,19 +73,20 @@ pub fn run(art: &Art, opts: &ScrollOpts) -> Result<()> {
         .iter()
         .map(|f| f.iter().map(|l| l.chars().collect()).collect())
         .collect();
-    let hold = opts.frame_hold.max(1) as i64;
+    let frame_ms = opts.frame_ms.max(1) as u128;
     let speed = Duration::from_millis(opts.speed_ms.max(1));
     let ink = colour(art.mood);
+    let started = Instant::now();
 
     let (cols0, _) = terminal::size()?;
     let mut x: i64 = cols0 as i64;
-    let mut tick: i64 = 0;
 
     loop {
         let (cols, rows) = terminal::size()?;
         let cols = cols as i64;
         let rows = rows as i64;
-        let frame = &frames[((tick / hold) as usize) % frames.len()];
+        let frame_index = (started.elapsed().as_millis() / frame_ms) as usize % frames.len();
+        let frame = &frames[frame_index];
         let band = height + 2;
         let top = ((rows - 1 - band) / 2).max(0);
 
@@ -86,7 +96,11 @@ pub fn run(art: &Art, opts: &ScrollOpts) -> Result<()> {
             if row >= rows - 1 {
                 break;
             }
-            queue!(out, cursor::MoveTo(0, row as u16), Print(window(line, x, cols)))?;
+            queue!(
+                out,
+                cursor::MoveTo(0, row as u16),
+                Print(window(line, x, cols))
+            )?;
         }
         let caption_row = top + height + 1;
         if caption_row < rows - 1 {
@@ -137,7 +151,6 @@ pub fn run(art: &Art, opts: &ScrollOpts) -> Result<()> {
             }
         }
         x -= 1;
-        tick += 1;
     }
     Ok(())
 }

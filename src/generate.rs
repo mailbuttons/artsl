@@ -55,7 +55,9 @@ fn schema() -> Value {
 }
 
 fn supports_fallbacks(model: &str) -> bool {
-    model.starts_with("claude-opus-5") || model.starts_with("claude-fable") || model == "claude-sonnet-5-5"
+    model.starts_with("claude-opus-5")
+        || model.starts_with("claude-fable")
+        || model == "claude-sonnet-5-5"
 }
 
 impl Generator {
@@ -63,7 +65,12 @@ impl Generator {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(300))
             .build()?;
-        Ok(Self { client, api_key, model, effort })
+        Ok(Self {
+            client,
+            api_key,
+            model,
+            effort,
+        })
     }
 
     pub async fn draw(&self, headlines: &[Headline], theme: Option<&str>) -> Result<Art> {
@@ -81,7 +88,11 @@ impl Generator {
             req = req.header("anthropic-beta", FALLBACK_BETA);
         }
 
-        let resp = req.json(&body).send().await.context("calling the Claude API")?;
+        let resp = req
+            .json(&body)
+            .send()
+            .await
+            .context("calling the Claude API")?;
         let status = resp.status();
         let text = resp.text().await?;
         if !status.is_success() {
@@ -98,9 +109,14 @@ impl Generator {
     /// `effort` sets the depth. Structured output pins the JSON shape.
     pub fn request_body(&self, headlines: &[Headline], theme: Option<&str>) -> Value {
         let today = chrono::Utc::now().format("%A %-d %B %Y");
-        let mut user = format!("Headlines for {today}:\n\n{}", news::format_for_prompt(headlines));
+        let mut user = format!(
+            "Headlines for {today}:\n\n{}",
+            news::format_for_prompt(headlines)
+        );
         if let Some(t) = theme.map(str::trim).filter(|t| !t.is_empty()) {
-            user.push_str(&format!("\nThe person watching asked for this slant: {t}\n"));
+            user.push_str(&format!(
+                "\nThe person watching asked for this slant: {t}\n"
+            ));
         }
         let mut body = json!({
             "model": self.model,
@@ -124,7 +140,9 @@ pub fn parse_response(text: &str, requested_model: &str) -> Result<Art> {
     let v: Value = serde_json::from_str(text).context("parsing the Claude API response")?;
     match v["stop_reason"].as_str() {
         Some("refusal") => {
-            let why = v["stop_details"]["explanation"].as_str().unwrap_or("declined");
+            let why = v["stop_details"]["explanation"]
+                .as_str()
+                .unwrap_or("declined");
             bail!("the model declined to draw this one: {why}");
         }
         Some("max_tokens") => bail!("the drawing ran out of room (max_tokens); try again"),
@@ -183,7 +201,10 @@ mod tests {
         assert!(user.contains("gentle"));
 
         let h = Generator::new("k".into(), "claude-haiku-5-5".into(), "low".into()).unwrap();
-        assert!(h.request_body(&[headline()], None).get("fallbacks").is_none());
+        assert!(h
+            .request_body(&[headline()], None)
+            .get("fallbacks")
+            .is_none());
     }
 
     #[test]

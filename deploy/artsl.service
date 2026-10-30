@@ -12,12 +12,43 @@ ExecStart=/opt/artsl/bin/artsl serve
 Restart=always
 RestartSec=10
 StartLimitIntervalSec=0
+
+# State: /var/lib/artsl (latest.json, archive/, artsl.redb)
 StateDirectory=artsl
+StateDirectoryMode=0750
+ReadWritePaths=/var/lib/artsl
+
+# Sandbox. The service needs outbound TCP (feeds, Claude, mailbuttons) and a
+# loopback listener; nothing else.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/artsl
 PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+# Resource ceilings. Drawing is I/O bound; memory stays small.
+MemoryMax=512M
+TasksMax=256
+LimitNOFILE=4096
 
 [Install]
 WantedBy=multi-user.target

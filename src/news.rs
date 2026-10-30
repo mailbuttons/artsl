@@ -46,20 +46,43 @@ pub async fn fetch_headlines(
     Ok(interleave(per_feed, limit))
 }
 
+pub const MAX_FEED_BYTES: usize = 5 * 1024 * 1024;
+
 async fn fetch_one(client: &reqwest::Client, url: &str) -> Result<Vec<Headline>> {
-    let text = client
+    let resp = client
         .get(url)
         .timeout(Duration::from_secs(12))
         .header(
             reqwest::header::USER_AGENT,
-            concat!("artsl/", env!("CARGO_PKG_VERSION"), " (+https://mailbuttons.com/art)"),
+            concat!(
+                "artsl/",
+                env!("CARGO_PKG_VERSION"),
+                " (+https://mailbuttons.com/art)"
+            ),
         )
         .send()
         .await?
-        .error_for_status()?
-        .text()
-        .await?;
-    Ok(parse_feed(&text))
+        .error_for_status()?;
+    let bytes = read_capped(resp, MAX_FEED_BYTES).await?;
+    Ok(parse_feed(&String::from_utf8_lossy(&bytes)))
+}
+
+/// Read a response body but refuse to buffer more than `max` bytes, so a
+/// misbehaving or hostile server cannot make the client swallow gigabytes.
+pub async fn read_capped(mut resp: reqwest::Response, max: usize) -> Result<Vec<u8>> {
+    if let Some(len) = resp.content_length() {
+        if len as usize > max {
+            anyhow::bail!("response too large ({len} bytes, limit {max})");
+        }
+    }
+    let mut buf = Vec::new();
+    while let Some(chunk) = resp.chunk().await? {
+        if buf.len() + chunk.len() > max {
+            anyhow::bail!("response too large (limit {max} bytes)");
+        }
+        buf.extend_from_slice(&chunk);
+    }
+    Ok(buf)
 }
 
 fn interleave(mut per_feed: Vec<Vec<Headline>>, limit: usize) -> Vec<Headline> {
@@ -282,7 +305,12 @@ mod tests {
         assert_eq!(items[0].source, "Example News");
         assert_eq!(items[0].title, "Cats & dogs");
         assert_eq!(items[0].summary, "A story about pets.");
-        assert_eq!(strip_html("a</p><p>b").split_whitespace().collect::<Vec<_>>(), vec!["a", "b"]);
+        assert_eq!(
+            strip_html("a</p><p>b")
+                .split_whitespace()
+                .collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
         assert_eq!(items[0].link, "https://x/1");
         assert!(items[0].published.starts_with("Thu"));
     }
@@ -305,7 +333,10 @@ mod tests {
         assert_eq!(tidy_source("NPR Topics: World"), "NPR");
         assert_eq!(tidy_source("Ars Technica - All content"), "Ars Technica");
         assert_eq!(tidy_source("Hacker News: Front Page"), "Hacker News");
-        assert_eq!(tidy_source("Al Jazeera – Breaking News, World News"), "Al Jazeera");
+        assert_eq!(
+            tidy_source("Al Jazeera – Breaking News, World News"),
+            "Al Jazeera"
+        );
         assert_eq!(tidy_source("BBC News"), "BBC News");
     }
 

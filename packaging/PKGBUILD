@@ -1,0 +1,45 @@
+# Maintainer: Code Cutter Limited <hello@codecutter.io>
+pkgname=artsl
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Console art that rolls across your terminal, drawn by an LLM from today's news. A homage to sl."
+arch=('x86_64' 'aarch64')
+url="https://github.com/mailbuttons/artsl"
+license=('MIT')
+depends=('gcc-libs')
+makedepends=('cargo')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/mailbuttons/artsl/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release
+  ./target/release/artsl man > artsl.1
+  ./target/release/artsl completions bash > artsl.bash
+  ./target/release/artsl completions zsh > _artsl
+  ./target/release/artsl completions fish > artsl.fish
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  cargo test --frozen --release
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/artsl "$pkgdir/usr/bin/artsl"
+  install -Dm644 artsl.1 "$pkgdir/usr/share/man/man1/artsl.1"
+  install -Dm644 artsl.bash "$pkgdir/usr/share/bash-completion/completions/artsl"
+  install -Dm644 _artsl "$pkgdir/usr/share/zsh/site-functions/_artsl"
+  install -Dm644 artsl.fish "$pkgdir/usr/share/fish/vendor_completions.d/artsl.fish"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

@@ -83,7 +83,7 @@ impl Art {
             caption: one_line(&d.caption, 110),
             headline: one_line(&d.headline, 200),
             source: one_line(&d.source, 60),
-            link: d.link.trim().to_string(),
+            link: clean_link(&d.link),
             mood: d.mood,
             frames: d.frames,
         })
@@ -97,6 +97,7 @@ impl Art {
         self.caption = one_line(&self.caption, 110);
         self.headline = one_line(&self.headline, 200);
         self.source = one_line(&self.source, 60);
+        self.link = clean_link(&self.link);
         Ok(())
     }
 
@@ -119,7 +120,10 @@ impl Art {
         } else if self.source.is_empty() {
             format!("{} — after: {}", self.title, self.headline)
         } else {
-            format!("{} — after: {} ({})", self.title, self.headline, self.source)
+            format!(
+                "{} — after: {} ({})",
+                self.title, self.headline, self.source
+            )
         }
     }
 
@@ -186,6 +190,20 @@ fn clean_line(line: &str) -> String {
     out
 }
 
+/// Only absolute http(s) links survive; anything else is dropped rather than
+/// rendered or opened.
+pub fn clean_link(s: &str) -> String {
+    let t = s.trim();
+    let ok = (t.starts_with("https://") || t.starts_with("http://"))
+        && t.len() <= 500
+        && !t.chars().any(|c| c.is_control() || c.is_whitespace());
+    if ok {
+        t.to_string()
+    } else {
+        String::new()
+    }
+}
+
 pub fn one_line(s: &str, max: usize) -> String {
     let collapsed: String = s.split_whitespace().collect::<Vec<_>>().join(" ");
     let cleaned: String = collapsed
@@ -242,6 +260,14 @@ mod tests {
     fn blank_art_is_rejected() {
         let mut frames = vec![vec!["   ".to_string()]];
         assert!(normalise_frames(&mut frames).is_err());
+    }
+
+    #[test]
+    fn links_must_be_absolute_http() {
+        assert_eq!(clean_link(" https://a.example/x "), "https://a.example/x");
+        assert_eq!(clean_link("javascript:alert(1)"), "");
+        assert_eq!(clean_link("file:///etc/passwd"), "");
+        assert_eq!(clean_link("https://a b"), "");
     }
 
     #[test]

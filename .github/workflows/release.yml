@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl }
+          - { os: macos-latest,  target: aarch64-apple-darwin }
+          - { os: macos-latest,  target: x86_64-apple-darwin }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cross tools (linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+            cargo install cross --locked
+          fi
+      - name: Build
+        run: |
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+            cross build --release --locked --target ${{ matrix.target }}
+          else
+            cargo build --release --locked --target ${{ matrix.target }}
+          fi
+      - name: Package
+        run: |
+          set -e
+          BIN=target/${{ matrix.target }}/release/artsl
+          NAME=artsl-${GITHUB_REF_NAME}-${{ matrix.target }}
+          mkdir -p dist/$NAME/completions
+          cp $BIN README.md LICENSE dist/$NAME/
+          # Generate docs with the host-runnable binary when possible.
+          if [ "${{ matrix.target }}" != "aarch64-unknown-linux-musl" ] && [ "${{ matrix.target }}" != "x86_64-apple-darwin" -o "$(uname -m)" = "x86_64" ]; then
+            $BIN man > dist/$NAME/artsl.1
+            for sh in bash zsh fish; do $BIN completions $sh > dist/$NAME/completions/artsl.$sh; done
+          fi
+          tar -C dist -czf dist/$NAME.tar.gz $NAME
+          (cd dist && shasum -a 256 $NAME.tar.gz > $NAME.tar.gz.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*.tar.gz*
+
+  deb:
+    name: Debian package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-deb --locked
+      - run: |
+          cargo build --release --locked
+          mkdir -p target/completions target/man
+          ./target/release/artsl completions bash > target/completions/artsl.bash
+          ./target/release/artsl completions zsh  > target/completions/_artsl
+          ./target/release/artsl completions fish > target/completions/artsl.fish
+          ./target/release/artsl man > target/man/artsl.1
+          cargo deb --no-build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: target/debian/*.deb
+
+  publish:
+    name: GitHub release
+    needs: [build, deb]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

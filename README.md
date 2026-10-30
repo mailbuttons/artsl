@@ -60,10 +60,13 @@ Press `q`, `Esc` or `Ctrl-C` to stop it early, unless you asked for `--stubborn`
 artsl subscribe you@example.com
 ```
 
-mailbuttons emails you a six-digit code; type it in and the tool stores an API
-key in its config file. No browser, no password. From then on `artsl --fresh`
-asks the art service to read the news and draw a new picture just for you
-(allowance: a couple of dozen a day). `artsl unsubscribe` forgets the key.
+mailbuttons emails you a six-digit code; type it in. No browser, no password.
+Behind the scenes the sign-in is traded, once, for an **art-only token** that
+is stored in the config file (mode 0600). The token can draw pictures and
+nothing else; your mailbuttons account key is never written to disk. From
+then on `artsl --fresh` asks the art service to read the news and draw a new
+picture just for you (allowance: a couple of dozen a day). `artsl
+unsubscribe` revokes the token and forgets it.
 
 The picture of the day never needs an account.
 
@@ -105,7 +108,7 @@ overrides). Every key is optional.
 ```toml
 [mailbuttons]
 base_url = "https://mailbuttons.com"
-# api_key and email are written by `artsl subscribe`
+# token and email are written by `artsl subscribe`
 
 [feed]
 url = "https://mailbuttons.com/art/latest.json"
@@ -113,7 +116,7 @@ refresh_hours = 3
 
 [display]
 speed_ms = 28       # per column of travel
-frame_hold = 6      # ticks per animation frame
+frame_ms = 150      # per animation frame, independent of speed
 stubborn = false
 
 [generate]           # only for `generate`, `publish` and `serve`
@@ -168,44 +171,57 @@ ANTHROPIC_API_KEY=... artsl serve --data-dir /var/lib/artsl --listen 127.0.0.1:8
 ```
 
 - `GET /art/latest.json` is the public picture of the day, redrawn every
-  `--refresh-hours` (6) by a background task.
-- `POST /art/v1/generate` with `Authorization: Bearer mbk_...` draws one now.
-  The key is checked against mailbuttons with one authenticated call (cached
-  ten minutes), then a per-key daily quota applies (`--daily-quota`, 24), then
-  at most `--concurrency` (2) pictures are drawn at once.
-- `GET /art/archive/{id}.json` serves any earlier picture.
+  `--refresh-hours` (6) by a background task. ETag and 304 supported.
+- `POST /art/v1/subscribe` with `Authorization: Bearer mbk_...` checks the
+  account key with mailbuttons once and returns an `art_` token. Tokens are
+  stored hashed in a redb file in the data directory.
+- `POST /art/v1/generate` with `Authorization: Bearer art_...` draws one now:
+  per-token daily quota (`--daily-quota`, 24), at most `--concurrency` (2)
+  pictures at once.
+- `DELETE /art/v1/subscribe` revokes a token. `GET /art/healthz` returns 503
+  when the picture of the day is stale. `GET /art/archive/{id}.json` serves
+  earlier pictures. Admin stats and revoke appear when `--admin-token` is set.
 
-Deployment files are in [deploy/](deploy/): a systemd unit for `serve`, an
-alternative `publish` timer that only maintains the static feed, an env
-example, and the nginx `location /art/` block for the mailbuttons.com server.
-
-A key point for the platform: the service does not touch the mailbuttons
-database. It trusts a key because the mailbuttons API accepted it. To make the
-art agent a paid listing later, swap that check for an entitlement endpoint;
-nothing else changes. A draft catalogue card is in
-[docs/catalogue-card.md](docs/catalogue-card.md).
+Deployment files and a ten-minute guide are in [deploy/](deploy/): a hardened
+systemd unit, an alternative `publish` timer for a static-only feed, an env
+example, and nginx blocks with caching and rate limits. The design, the
+security review and the scaling notes are in
+[docs/architecture.md](docs/architecture.md). The service never touches the
+mailbuttons database; it trusts an account key because the mailbuttons API
+accepted it, and that one check is where a paid tier would plug in. A draft
+catalogue card is in [docs/catalogue-card.md](docs/catalogue-card.md).
 
 ## What leaves your machine
 
 - Plain `artsl`: one `GET` of the public feed, at most every few hours, with a
   `User-Agent` of `artsl/<version>`.
 - `artsl subscribe`: your email address, to mailbuttons, to send the code.
-- `artsl --fresh`: your mailbuttons key and the optional `--theme` text.
+- `artsl subscribe`, once: the account key from sign-in, to the art service,
+  in exchange for the art token. The account key is then discarded.
+- `artsl --fresh`: your art token and the optional `--theme` text.
 - `artsl generate`: the headlines and your theme, to the Claude API, with your
   own key.
+
+## Packaging
+
+`artsl man` prints the manual page and `artsl completions <shell>` the
+completions, so packagers need nothing but the binary. A `.deb` is built from
+`[package.metadata.deb]`, an Arch `PKGBUILD` is in `packaging/`, and the
+release workflow attaches static Linux and macOS binaries with checksums to
+each tag. The route to distribution repositories is in
+[docs/packaging.md](docs/packaging.md).
 
 ## Development
 
 ```bash
 cargo test
-cargo clippy --all-targets
+cargo clippy --all-targets -- -D warnings
 ARTSL_CONFIG=/tmp/c.toml ARTSL_CACHE_DIR=/tmp/cache cargo run -- --builtin
 ```
 
-Modules: `art` (document and normalisation), `builtin` (the shipped picture),
-`scroll` (the renderer), `source` (which picture to show), `news` (RSS/Atom),
-`generate` (the Messages API call), `mailbuttons` (sign-in and on-demand
-client), `serve` (the HTTP service), `config`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the module map and
+[SECURITY.md](SECURITY.md) for what is protected and how to report a
+problem.
 
 ## Credits
 
