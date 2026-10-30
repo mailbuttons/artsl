@@ -79,6 +79,11 @@ artsl --file today.json               # roll a saved picture
 artsl news                            # the headlines it would draw from
 ```
 
+A real one, drawn by `claude-opus-5-5` on 29 October 2026 from a Hacker News
+headline about Mistral's "Le Chonk" release, is in
+[examples/le-chonk-lifts.json](examples/le-chonk-lifts.json):
+`artsl --file examples/le-chonk-lifts.json`.
+
 ## How it picks a picture
 
 1. `--file` or `--builtin`, if you asked.
