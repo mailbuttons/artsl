@@ -3,6 +3,14 @@
 All notable changes to artsl. The format follows Keep a Changelog; versions
 follow semver once 1.0 is reached.
 
+## [Unreleased]
+
+### Fixed
+- `deploy/deploy.sh` creates `/var/cache/nginx/art` for the proxy cache; the
+  Debian nginx package has no `/var/cache/nginx`, so `nginx -t` failed on a
+  fresh box. Its closing instructions now say `make reload-nginx`, not
+  `make setup-nginx`, which overwrote the live mailbuttons.com server block.
+
 ## [0.1.0] - 2026-11-04
 
 ### Added

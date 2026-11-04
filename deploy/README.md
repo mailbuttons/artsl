@@ -15,8 +15,8 @@ live server block. Finish by hand:
 
 1. Add `include snippets/artsl.conf;` to the mailbuttons.com server block
    ahead of `location /api/` (in the mailbuttons repo,
-   `deployment/nginx/mailbuttons.com`, deployed with `make setup-nginx`).
-2. `sudo nginx -t && sudo systemctl reload nginx` on the box.
+   `deployment/nginx/mailbuttons.com`, shipped with `make reload-nginx`; never `make setup-nginx`, which overwrites the live block with the pre-SSL bootstrap).
+2. `curl -s https://mailbuttons.com/art/healthz` should return ok.
 
 Upgrades are the same command with the new tag. By hand, the steps are:
 create the `artsl` user, copy the binary to `/opt/artsl/bin`, the env to

@@ -62,6 +62,10 @@ fi
 sudo install -m 0644 /tmp/artsl.service /etc/systemd/system/artsl.service
 sudo install -m 0644 -D /tmp/nginx-art.conf /etc/nginx/snippets/artsl.conf
 sudo install -m 0644 -D /tmp/nginx-art-zones.conf /etc/nginx/conf.d/artsl-zones.conf
+# proxy_cache_path in the zones file points under /var/cache/nginx, which the
+# Debian nginx package does not create; nginx -t fails with mkdir() ENOENT
+# unless the parent exists. Owned by the nginx worker user.
+sudo mkdir -p /var/cache/nginx/art && sudo chown www-data:www-data /var/cache/nginx/art
 rm -f /tmp/artsl /tmp/artsl.service /tmp/artsl.env.example /tmp/nginx-art.conf /tmp/nginx-art-zones.conf
 
 sudo systemctl daemon-reload
@@ -77,12 +81,13 @@ cat <<MSG
 Service installed. Two things remain, done by hand:
 
 1. In the mailbuttons.com server block (deployment/nginx/mailbuttons.com in
-   the mailbuttons repo, deployed with \`make setup-nginx\`), add this line
-   just before \`location /api/ {\`:
+   the mailbuttons repo), add this line just before \`location /api/ {\`:
 
        include snippets/artsl.conf;
 
-2. On the box:  sudo nginx -t && sudo systemctl reload nginx
+2. Ship it with \`make reload-nginx\` (upload, nginx -t, reload). Never
+   \`make setup-nginx\`: that is the first-install bootstrap and overwrites
+   the live server block with the HTTP-only file.
 
 Then: curl -s https://mailbuttons.com/art/healthz
 (503 "no_picture_yet" for the first minute or two is normal; the first draw
