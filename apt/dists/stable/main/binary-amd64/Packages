@@ -1,0 +1,20 @@
+Package: artsl
+Version: 0.1.1-1
+Architecture: amd64
+Maintainer: Code Cutter Limited <hello@codecutter.io>
+Installed-Size: 6762
+Filename: pool/main/a/artsl/artsl_0.1.1-1_amd64.deb
+Size: 2471940
+MD5sum: c954d64c90209f406c3beff12985bf77
+SHA1: 61c685cac777bfbf406ba18abf020a5cb9e581ca
+SHA256: 2b52a98b0554c4ff05a159158237efa60fd0bdab4cba7990c18529db4711da83
+Section: games
+Priority: optional
+Homepage: https://github.com/mailbuttons/artsl
+Description: Console art that rolls across your terminal, drawn by an LLM from today's news.
+ A homage to sl.
+ Like sl, but the picture changes with the news. artsl rolls a piece of
+ console art across the terminal: a built-in picture on first run, then the
+ picture of the day from mailbuttons.com, drawn each morning by an LLM from
+ the headlines. Subscribers can have one drawn on the spot.
+

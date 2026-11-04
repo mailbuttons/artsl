@@ -1,0 +1,42 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: amd64 arm64
+Codename: stable
+Components: main
+Date: Wed, 04 Nov 2026 08:12:46 +0000
+Description: artsl: console art that rolls across your terminal
+Label: artsl
+Origin: mailbuttons
+Suite: stable
+MD5Sum:
+ 88d4a19ac098b4f8e71243fa69ee682a              210 Release
+ b6cb48b8bd71a81090ee2bd7ac1278e4              830 main/binary-amd64/Packages
+ 39fe220abb9ea6ee32274d0657da821b              550 main/binary-amd64/Packages.gz
+ a04ff1b60b4812b6324a684470b78108              830 main/binary-arm64/Packages
+ 7b155e7d869ebb4bf68b456d6297561d              550 main/binary-arm64/Packages.gz
+SHA1:
+ 12d20dff3ae9d2cd693e1fcffbf38c7e39027e61              210 Release
+ 39cfcc0f2c94235a0d8fa079ec957345dd25e998              830 main/binary-amd64/Packages
+ fccb44403fbbf6bc17b0e0fdf858f9a6e78d8819              550 main/binary-amd64/Packages.gz
+ c6f6352682b39a4deb3d88e76b18606ce59c32b8              830 main/binary-arm64/Packages
+ 6eced0304e96687951fabbbeaf2baef7a5e12f30              550 main/binary-arm64/Packages.gz
+SHA256:
+ bbe7bf18713b93ca2f09cb26d2da85a161adc1e7d97114657e09e78f0c7f9cee              210 Release
+ 0f73791494e4f405d48be2d938f432ac32d1fd7e139ca0a5ef06629cc110beb3              830 main/binary-amd64/Packages
+ 4acba3112707d840a0adc9615af83998301bb267cfdafd0f699d42a7139a7cb2              550 main/binary-amd64/Packages.gz
+ 80cd3d9b64d5e5269b41f70f2e132676de1fa357c105e5a04c4794f2627120de              830 main/binary-arm64/Packages
+ c1167043f5aef2b98a4fbc45e77096d59b4ce378e987f74c8e01ca5f0c710b1b              550 main/binary-arm64/Packages.gz
+SHA512:
+ eb142542d67f92bc565f0b4b46b57b047d9ff725bc99cf92176b507da227ba88b65cc71c631c9b15bf0f71c49e22887675245e601e856b766906fb8f8e3bf047              210 Release
+ b905e15109dd30c5d8ccee72dfaee623268839e3df9c6b81bf282e3b5424582104387a90279c5aeb4853fc4383f072d0a22a424afc7171e064609dd77c2d1f7c              830 main/binary-amd64/Packages
+ 0db167bf72ab846f43ba578ddfa4d03baf210e842b95797632f22b6e779c8f02d971b5acab666b41867e637f4c9aeb23fdd6c531773cbcd2e48a0ef839ad7da3              550 main/binary-amd64/Packages.gz
+ cd03dedb3e193be2b642a6288e670a611370d222443a22cbd75982cc36cefa4a06cc9e1f9b1db7482465308fcd8e500d0f1a19b32d7ece6c8bfd54350609c23d              830 main/binary-arm64/Packages
+ d27c6b84de9e2db0d537802b2b37833473c94a6400ffe65ad7dd09c9fdd2ac9406a81108006a54c5156e7f5c848e613660e12470e6b6259225ed48f3d4858acd              550 main/binary-arm64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQTWWoT7F1ZXs0mxXv6G5wIuC5TJwQUCauro/gAKCRCG5wIuC5TJ
+wX40APwJnQ8toU/vKuYJ6cGNM2E2NDLAQu+Au7FWMmhRP7Z3fwD6A8aptqqySC9D
+X3dPxZLweyM/dYZD/H0AvXxuWJRqhAQ=
+=vxbr
+-----END PGP SIGNATURE-----
