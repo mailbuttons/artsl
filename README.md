@@ -36,8 +36,8 @@ repository:
 
 ```bash
 sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://mailbuttons.github.io/artsl/key.gpg | sudo tee /etc/apt/keyrings/mailbuttons-artsl.asc >/dev/null
-echo "deb [signed-by=/etc/apt/keyrings/mailbuttons-artsl.asc] https://mailbuttons.github.io/artsl/apt stable main" | sudo tee /etc/apt/sources.list.d/mailbuttons-artsl.list
+curl -fsSL https://apt.mailbuttons.com/key.gpg | sudo tee /etc/apt/keyrings/mailbuttons-artsl.asc >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/mailbuttons-artsl.asc] https://apt.mailbuttons.com/apt stable main" | sudo tee /etc/apt/sources.list.d/mailbuttons-artsl.list
 sudo apt update && sudo apt install artsl
 ```
 

@@ -30,15 +30,16 @@ attaches static musl binaries for x86_64 and aarch64, macOS binaries, a
 
 Done, today: every release publishes amd64 and arm64 `.deb`s (static musl
 binaries, so one package serves every Debian and Ubuntu release) to a
-signed apt repository on GitHub Pages, `https://mailbuttons.github.io/artsl/apt`.
+signed apt repository on GitHub Pages, `https://apt.mailbuttons.com/apt`.
 The `apt-repo` job in `.github/workflows/release.yml` builds it with
 `dpkg-scanpackages` and `apt-ftparchive` and signs `InRelease` with the key
 from `deploy/apt/make-signing-key.sh` (secrets `APT_GPG_PRIVATE_KEY` and
 `APT_GPG_FINGERPRINT`; the key expires after five years, re-run the script
 to rotate). To republish an existing tag, run the workflow by hand with
-that tag. A custom host such as `apt.mailbuttons.com` is a CNAME to
-`mailbuttons.github.io` plus the domain in the Pages settings; the
-`signed-by` line in the README changes accordingly.
+that tag. The host `apt.mailbuttons.com` is a DNS-only (unproxied) CNAME to
+`mailbuttons.github.io` with the custom domain set in the Pages settings;
+GitHub issues the certificate and the old `mailbuttons.github.io/artsl`
+address redirects to it.
 
 Official path: Debian packages Rust crates through the Rust team with
 `debcargo`. Requirements that this crate already meets: all dependencies
