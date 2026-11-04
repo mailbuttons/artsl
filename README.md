@@ -31,13 +31,25 @@ right now.
 
 ## Install
 
+**Debian and Ubuntu** (amd64 and arm64, any release), from the signed
+repository:
+
 ```bash
-cargo install --path .        # from this checkout
-# or, once published:
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://mailbuttons.github.io/artsl/key.gpg | sudo tee /etc/apt/keyrings/mailbuttons-artsl.asc >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/mailbuttons-artsl.asc] https://mailbuttons.github.io/artsl/apt stable main" | sudo tee /etc/apt/sources.list.d/mailbuttons-artsl.list
+sudo apt update && sudo apt install artsl
+```
+
+**Anywhere with Rust** (1.88 or newer):
+
+```bash
 cargo install artsl
 ```
 
-Rust 1.80 or newer. One static binary, no runtime dependencies.
+**Binaries**: static Linux (x86_64, aarch64) and macOS builds with checksums
+on the [releases page](https://github.com/mailbuttons/artsl/releases).
+**Arch**: `packaging/PKGBUILD`. One static binary, no runtime dependencies.
 
 ## Use
 

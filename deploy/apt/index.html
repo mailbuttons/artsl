@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>artsl apt repository</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;max-width:46rem;margin:3rem auto;padding:0 1rem;color:#222}pre{background:#f4f4f4;padding:1rem;overflow:auto}code{font-size:.95em}</style>
+</head><body>
+<h1>artsl apt repository</h1>
+<p>Signed packages of <a href="https://github.com/mailbuttons/artsl">artsl</a> for Debian and Ubuntu, amd64 and arm64. Static binaries; no other packages needed.</p>
+<pre><code>sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://mailbuttons.github.io/artsl/key.gpg | sudo tee /etc/apt/keyrings/mailbuttons-artsl.asc &gt;/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/mailbuttons-artsl.asc] https://mailbuttons.github.io/artsl/apt stable main" | sudo tee /etc/apt/sources.list.d/mailbuttons-artsl.list
+sudo apt update &amp;&amp; sudo apt install artsl</code></pre>
+<p>Then run <code>artsl</code>. The signing key is <a href="key.gpg">key.gpg</a>; packages are in <a href="apt/pool/main/a/artsl/">apt/pool</a>; the index is <a href="apt/dists/stable/InRelease">dists/stable/InRelease</a>.</p>
+</body></html>

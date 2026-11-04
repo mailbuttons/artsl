@@ -11,6 +11,13 @@ follow semver once 1.0 is reached.
   fresh box. Its closing instructions now say `make reload-nginx`, not
   `make setup-nginx`, which overwrote the live mailbuttons.com server block.
 
+## [0.1.1] - 2026-11-04
+
+### Added
+- Signed apt repository on GitHub Pages with amd64 and arm64 packages
+  (static binaries, one package for every Debian and Ubuntu release).
+- `deploy/deploy.sh`: one-command install of the art service from a release.
+
 ## [0.1.0] - 2026-11-04
 
 ### Added

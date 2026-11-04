@@ -28,10 +28,17 @@ attaches static musl binaries for x86_64 and aarch64, macOS binaries, a
 
 ## 2. Debian and Ubuntu
 
-Fast path, today: the `.deb` from the release page, built by `cargo deb`
-with `[package.metadata.deb]` (binary, man page, completions). Host it in a
-small apt repository (e.g. with `reprepro` or Cloudsmith) and users add one
-line to their sources.
+Done, today: every release publishes amd64 and arm64 `.deb`s (static musl
+binaries, so one package serves every Debian and Ubuntu release) to a
+signed apt repository on GitHub Pages, `https://mailbuttons.github.io/artsl/apt`.
+The `apt-repo` job in `.github/workflows/release.yml` builds it with
+`dpkg-scanpackages` and `apt-ftparchive` and signs `InRelease` with the key
+from `deploy/apt/make-signing-key.sh` (secrets `APT_GPG_PRIVATE_KEY` and
+`APT_GPG_FINGERPRINT`; the key expires after five years, re-run the script
+to rotate). To republish an existing tag, run the workflow by hand with
+that tag. A custom host such as `apt.mailbuttons.com` is a CNAME to
+`mailbuttons.github.io` plus the domain in the Pages settings; the
+`signed-by` line in the README changes accordingly.
 
 Official path: Debian packages Rust crates through the Rust team with
 `debcargo`. Requirements that this crate already meets: all dependencies

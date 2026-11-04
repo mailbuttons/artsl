@@ -1,6 +1,6 @@
 # Maintainer: Code Cutter Limited <hello@codecutter.io>
 pkgname=artsl
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Console art that rolls across your terminal, drawn by an LLM from today's news. A homage to sl."
 arch=('x86_64' 'aarch64')

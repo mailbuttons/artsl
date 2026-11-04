@@ -3,6 +3,11 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)publish to the apt repository, e.g. v0.1.1"
+        required: true
 
 permissions:
   contents: write
@@ -10,6 +15,7 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.target }}
+    if: github.event_name == 'push'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -47,8 +53,8 @@ jobs:
           NAME=artsl-${GITHUB_REF_NAME}-${{ matrix.target }}
           mkdir -p dist/$NAME/completions
           cp $BIN README.md LICENSE dist/$NAME/
-          # Generate docs with the host-runnable binary when possible.
-          if [ "${{ matrix.target }}" != "aarch64-unknown-linux-musl" ] && [ "${{ matrix.target }}" != "x86_64-apple-darwin" -o "$(uname -m)" = "x86_64" ]; then
+          # Generate docs with the binary when the runner can execute it.
+          if $BIN --version >/dev/null 2>&1; then
             $BIN man > dist/$NAME/artsl.1
             for sh in bash zsh fish; do $BIN completions $sh > dist/$NAME/completions/artsl.$sh; done
           fi
@@ -60,28 +66,49 @@ jobs:
           path: dist/*.tar.gz*
 
   deb:
-    name: Debian package
+    name: Debian packages (amd64, arm64)
+    if: github.event_name == 'push'
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-deb --locked
-      - run: |
-          cargo build --release --locked
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-unknown-linux-musl"
+          path: dist
+          merge-multiple: true
+      - name: Unpack the static binaries where cargo-deb expects them
+        run: |
+          set -e
+          for triple in x86_64-unknown-linux-musl aarch64-unknown-linux-musl; do
+            tar -xzf dist/artsl-${GITHUB_REF_NAME}-$triple.tar.gz -C dist
+            mkdir -p target/$triple/release
+            cp dist/artsl-${GITHUB_REF_NAME}-$triple/artsl target/$triple/release/artsl
+          done
           mkdir -p target/completions target/man
-          ./target/release/artsl completions bash > target/completions/artsl.bash
-          ./target/release/artsl completions zsh  > target/completions/_artsl
-          ./target/release/artsl completions fish > target/completions/artsl.fish
-          ./target/release/artsl man > target/man/artsl.1
-          cargo deb --no-build
+          BIN=target/x86_64-unknown-linux-musl/release/artsl
+          $BIN completions bash > target/completions/artsl.bash
+          $BIN completions zsh  > target/completions/_artsl
+          $BIN completions fish > target/completions/artsl.fish
+          $BIN man > target/man/artsl.1
+      - name: Build packages
+        run: |
+          set -e
+          cargo deb --no-build --no-strip --target x86_64-unknown-linux-musl
+          cargo deb --no-build --no-strip --target aarch64-unknown-linux-musl
+          ls -la target/*/debian/*.deb
+          dpkg-deb --info target/x86_64-unknown-linux-musl/debian/*.deb | sed -n '1,20p'
       - uses: actions/upload-artifact@v4
         with:
           name: deb
-          path: target/debian/*.deb
+          path: target/*/debian/*.deb
 
   publish:
     name: GitHub release
+    if: github.event_name == 'push'
     needs: [build, deb]
     runs-on: ubuntu-latest
     steps:
@@ -93,3 +120,70 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+
+  apt-repo:
+    name: apt repository (GitHub Pages)
+    needs: [publish]
+    if: always() && !cancelled() && (github.event_name == 'workflow_dispatch' || needs.publish.result == 'success')
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils gnupg
+      - name: Download the packages of this release
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.deb' --dir debs && ls -la debs
+      - name: Import the signing key
+        env:
+          KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          FPR: ${{ secrets.APT_GPG_FINGERPRINT }}
+        run: |
+          set -e
+          [ -n "$KEY" ] || { echo "APT_GPG_PRIVATE_KEY secret is not set; run deploy/apt/make-signing-key.sh"; exit 1; }
+          echo "$KEY" | gpg --batch --import
+          echo "$FPR:6:" | gpg --batch --import-ownertrust
+      - name: Build the repository
+        env:
+          FPR: ${{ secrets.APT_GPG_FINGERPRINT }}
+        run: |
+          set -e
+          cd site
+          mkdir -p apt/pool/main/a/artsl
+          cp ../debs/*.deb apt/pool/main/a/artsl/
+          cd apt
+          for arch in amd64 arm64; do
+            mkdir -p dists/stable/main/binary-$arch
+            dpkg-scanpackages --multiversion --arch $arch pool/ > dists/stable/main/binary-$arch/Packages
+            gzip -9 -k -f dists/stable/main/binary-$arch/Packages
+          done
+          cat > /tmp/release.conf <<'CONF'
+          APT::FTPArchive::Release::Origin "mailbuttons";
+          APT::FTPArchive::Release::Label "artsl";
+          APT::FTPArchive::Release::Suite "stable";
+          APT::FTPArchive::Release::Codename "stable";
+          APT::FTPArchive::Release::Architectures "amd64 arm64";
+          APT::FTPArchive::Release::Components "main";
+          APT::FTPArchive::Release::Description "artsl: console art that rolls across your terminal";
+          CONF
+          apt-ftparchive -c /tmp/release.conf release dists/stable > dists/stable/Release
+          gpg --batch --yes -u "$FPR" --clearsign -o dists/stable/InRelease dists/stable/Release
+          gpg --batch --yes -u "$FPR" -abs -o dists/stable/Release.gpg dists/stable/Release
+          gpg --batch --armor --export "$FPR" > ../key.gpg
+          cp ../../src/deploy/apt/index.html ../index.html
+          touch ../.nojekyll
+      - name: Publish to gh-pages
+        run: |
+          cd site
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "apt: $TAG" || echo "nothing to commit"
+          git push
