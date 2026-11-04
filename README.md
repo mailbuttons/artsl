@@ -65,7 +65,7 @@ Behind the scenes the sign-in is traded, once, for an **art-only token** that
 is stored in the config file (mode 0600). The token can draw pictures and
 nothing else; your mailbuttons account key is never written to disk. From
 then on `artsl --fresh` asks the art service to read the news and draw a new
-picture just for you (allowance: a couple of dozen a day). `artsl
+picture just for you. It is free; the allowance is a couple of dozen a day. `artsl
 unsubscribe` revokes the token and forgets it.
 
 The picture of the day never needs an account.

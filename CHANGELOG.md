@@ -3,7 +3,7 @@
 All notable changes to artsl. The format follows Keep a Changelog; versions
 follow semver once 1.0 is reached.
 
-## [Unreleased]
+## [0.1.0] - 2026-11-04
 
 ### Added
 - First release: the scroller, the built-in picture, the picture of the day

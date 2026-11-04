@@ -5,8 +5,8 @@ row in the mailbuttons repo (the rule there: seed and array change in the same
 commit). Copy follows the store voice: British English, short sentences, no
 exclamation marks, no developer words on buyer pages.
 
-Decisions left open, marked `TODO`: the price (free with an account is the
-simplest honest label, and what the service enforces today) and whether to
+Decided: it is free. "Free with an account" is the label, and what the
+service enforces (a daily allowance per subscriber). Still open: whether to
 ship an email address for it.
 
 ```ts
@@ -14,7 +14,7 @@ ship an email address for it.
   slug: 'artist', name: 'The artist', trade: 'Our crew', role: 'Console art',
   does: 'Draws a picture of the day from the news for your terminal. Subscribers can have one drawn on the spot.',
   approves: 'Nothing; it draws.', availability: 'hireable',
-  price_label: 'Free with an account',           // TODO confirm
+  price_label: 'Free with an account',
   cta_label: 'Get this agent', cta_href: '/agents/artist/', sort_order: 60,
   needs: 'The artsl command on your machine, and an email address to sign in with.',
   address_pattern: null,                          // TODO: art@mailbuttons.com could reply with the picture
