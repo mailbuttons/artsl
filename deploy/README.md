@@ -1,22 +1,28 @@
 # Deploying the art service
 
-One binary, one state directory, one nginx location. Ten minutes.
+One binary, one state directory, one nginx include. Ten minutes.
 
 ```bash
-# On the mailbuttons box
-sudo useradd --system --home /var/lib/artsl --shell /usr/sbin/nologin artsl
-sudo mkdir -p /opt/artsl/bin && sudo cp artsl /opt/artsl/bin/
-sudo cp deploy/artsl.env.example /opt/artsl/artsl.env   # then edit it
-sudo chown root:artsl /opt/artsl/artsl.env && sudo chmod 0640 /opt/artsl/artsl.env
-sudo cp deploy/artsl.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now artsl
-curl -s http://127.0.0.1:8090/art/healthz
+# From this checkout, with `gh` logged in and SSH access to the box
+deploy/deploy.sh v0.1.0
 ```
 
-Add the `limit_req_zone` and `proxy_cache_path` lines from
-`deploy/nginx-art.conf` to the http block, paste the location blocks into the
-mailbuttons.com server block ahead of `location /api/`, then
-`nginx -t && systemctl reload nginx`.
+That downloads the tagged static build, verifies its checksum, installs the
+binary, the systemd unit, the nginx snippet and zones, seeds
+`/opt/artsl/artsl.env` on first run (Claude key from the staff service's env,
+a fresh admin token) and starts the service. It stops short of touching the
+live server block. Finish by hand:
+
+1. Add `include snippets/artsl.conf;` to the mailbuttons.com server block
+   ahead of `location /api/` (in the mailbuttons repo,
+   `deployment/nginx/mailbuttons.com`, deployed with `make setup-nginx`).
+2. `sudo nginx -t && sudo systemctl reload nginx` on the box.
+
+Upgrades are the same command with the new tag. By hand, the steps are:
+create the `artsl` user, copy the binary to `/opt/artsl/bin`, the env to
+`/opt/artsl/artsl.env` (0640, root:artsl), the unit to
+`/etc/systemd/system`, `nginx-art.conf` to `/etc/nginx/snippets/artsl.conf`
+and `nginx-art-zones.conf` to `/etc/nginx/conf.d/`, then enable the unit.
 
 ## Watching it
 
